@@ -1,0 +1,19 @@
+Administrador
+- Crear torneos
+    - Definir numero de llaves
+    - No iniciar hasta que se llenen los usuarios
+    - Llaves aleartorias
+- Ver torneos pasados
+- Ver torneos presentes
+- Ver torneos futuros
+- Simular partida
+    - Enviar datos de partida
+    - Recibir datos de ganador
+    - Asignar ganador a siguiente ronda
+- Definir ganador de troneo
+
+
+Usuario
+- Ver torneos pasados
+- Ver torneos presentes
+- Ver torneos futuros
