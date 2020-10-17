@@ -1,8 +1,10 @@
+#!/usr/bin/env node
 const express = require('express');
 const mysql = require('mysql');
 const request = require('request')
 const cors = require('cors');
-const bodyParser = require('body-parser')
+const bodyParser = require('body-parser');
+const e = require('express');
 
 
 const app = express();
@@ -27,14 +29,6 @@ app.listen(port,ip, () => {
     console.log('Se escucha en el puerto: %d y con la ip: %s',port,ip);
 });
 
-app.get('/juegos/', function (req, res) {
-    var sql = "SELECT * FROM Juego;";
-    conn.query(sql, function (err, result) {
-        if (err) throw err;
-        res.send(result);
-    });
-});
-
 /* Crear nuevo torneo */
 app.post('/nuevotorneo/', function (req, res) {
     var nombre = req.body.nombre;
@@ -42,8 +36,8 @@ app.post('/nuevotorneo/', function (req, res) {
     var llave = req.body.llave;
     var sql = "INSERT INTO torneo(nombre,juegoid,llave) VALUES('"+nombre+"',"+juegoid+","+llave+");";
     conn.query(sql, function (err, result) {
-        if (err) throw err;
-        res.send(req.body);
+        if (err) res.send({status: err});
+        else res.send({status:req.body});
     });
 });
 
@@ -57,7 +51,10 @@ app.get('/asignarllaves/',(req,res)=>{
             "WHERE p.torneoid = t.id "+
             "AND p.torneoid = "+torneo+";";
     conn.query(sql, function (err, result) {
-        if (err) throw err;
+        if (err) {
+            res.send({status:err}) 
+            return
+        }
         result.forEach(element => {
             lista.push(element.id)
             llave = element.llave
@@ -96,7 +93,10 @@ app.post('/asignarparticipacion/', (req, res,next)=> {
     var sql = "SELECT llave,ganadorid FROM Torneo WHERE id = "+torneo+";";
     
     conn.query(sql, function (err, result) {
-        if (err) throw err;
+        if (err) {
+            res.send({status:err}) 
+            return
+        }
         
         datostorneo = JSON.parse(JSON.stringify(result));
         
@@ -106,18 +106,27 @@ app.post('/asignarparticipacion/', (req, res,next)=> {
         else{
             var sql = "SELECT count(*) as num FROM Participacion WHERE torneoid = "+torneo+";";
             conn.query(sql, function (err, result) {
-                if (err) throw err;
+                if (err) {
+                    res.send({status:err}) 
+                    return
+                }
                 disponibles = result[0].num;
                 maxusers = Math.pow(2,datostorneo.llave)
                 if (disponibles<maxusers){
                     var sql = "SELECT * FROM Participacion WHERE usuarioid = "+usuario+" AND torneoid = "+torneo+";";
                     conn.query(sql, function (err, result) {
-                        if (err) throw err;
+                        if (err) {
+                            res.send({status:err}) 
+                            return
+                        }
                         if (JSON.parse(JSON.stringify(result)).length > 0){res.send({status:"Usuario ya registrado en el torneo"})}
                         else{
                             var sql = "INSERT INTO Participacion(usuarioid,torneoid) VALUES("+usuario+","+torneo+");";
                             conn.query(sql, function (err, result) {
-                                if (err) throw err;
+                                if (err) {
+                                    res.send({status:err}) 
+                                    return
+                                }
                                 disponibles = disponibles+1
                                 if (disponibles == maxusers){
 
@@ -132,7 +141,53 @@ app.post('/asignarparticipacion/', (req, res,next)=> {
     });
 });
 
+/* Obtener las llaves de un torneo*/
+app.get('/verllaves/',(req,res)=>{
+    var torneo = req.query.ext
+    var sql = "SELECT * FROM Torneo WHERE id = "+torneo+";"
+    var JSONtxt = "{"
+    conn.query(sql, function (err, result) {
+        if (err) {
+            res.send({status:err}) 
+            return
+        }
+        JSONtxt = JSONtxt + '\"nombre\": "'+result[0].nombre+'",'
+        JSONtxt = JSONtxt + '\"ganador\": '+result[0].ganadorid+","
+        JSONtxt = JSONtxt + '\"llave\": '+result[0].llave+","
+        var llaves = result[0].llave
+        sql = "SELECT p.numpartida as numpartida, u.nombre as user, llaveid as llavepart "
+            + "FROM Participacion part, Partida p, Usuario u "
+            + "WHERE part.id = p.participacionid "
+            + "AND part.usuarioid = u.id "
+            + "AND part.torneoid = "+torneo+";";
+        conn.query(sql, function (err, result) {
+            if (err) {
+                res.send({status:err}) 
+                return
+            }
+            while(llaves>0){
+                JSONtxt = JSONtxt + '\"fase' + llaves + '\":['
+                result.forEach(element => {
+                   if(element.llavepart == llaves){
+                       JSONtxt = JSONtxt + "{"
+                       JSONtxt = JSONtxt + '\"usuario\": \"'+element.user+'\",'
+                       JSONtxt = JSONtxt + '\"numpartida\": '+element.numpartida
+                       JSONtxt = JSONtxt + "},"
+                   } 
+                });
+                if (JSONtxt[JSONtxt.length-1]==","){JSONtxt = JSONtxt.slice(0,-1)}
+                JSONtxt=JSONtxt+"],"
+                llaves = llaves -1
 
+            }
+            if (JSONtxt[JSONtxt.length-1]==","){JSONtxt = JSONtxt.slice(0,-1)}
+            JSONtxt = JSONtxt + "}"
+            JSONtxt = JSON.parse(JSONtxt)
+            res.send(JSONtxt)
+        });
+        
+    });
+});
 
 
 
