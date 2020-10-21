@@ -11,12 +11,12 @@ app.use(bodyParser.json())
 app.use(cors());
 
 /*ip y puerto donde correra el sevidor nodejs*/
-const ip = "localhost";
+const ip = "0.0.0.0";
 const port = 3000;
 
 /*conexion con la base de datos mysql*/
 var conn = mysql.createConnection({
-    host: "db",
+    host: "mysqldb",
     port: "3306",
     user: "usuariosa",
     password: "123",
@@ -33,7 +33,7 @@ app.post('/nuevotorneo/', function (req, res) {
     var nombre = req.body.nombre;
     var juegoid = req.body.juegoid;
     var llave = req.body.llave;
-    var sql = "INSERT INTO torneo(nombre,juegoid,llave) VALUES('"+nombre+"',"+juegoid+","+llave+");";
+    var sql = "INSERT INTO Torneo(nombre,juegoid,llave) VALUES('"+nombre+"',"+juegoid+","+llave+");";
     conn.query(sql, function (err, result) {
         if (err) res.send({status: err});
         else res.send({status:req.body});
@@ -42,6 +42,25 @@ app.post('/nuevotorneo/', function (req, res) {
 
 /* Indica la conclusion de la partida */
 app.put('/partidas/:id',(req,res)=>{
+    var token = req.headers['authorization']
+    if(!token){
+        res.status(401).send({
+          error: "Es necesario el token de autenticación"
+        })
+        return
+    }
+    token = token.replace('Bearer ', '')
+    var verifyOptions = {
+        algorithm:  ["RS256"]
+    };
+    
+    jwt.verify(token, publicKEY, verifyOptions, function(err, user) {
+        if (err) {
+            console.log(err)
+            res.status(401).send({error: token})
+            return
+        }
+    });   
     var partida = req.params.id
     var marcador = req.body.marcador
     var ganadorid = 0
@@ -124,7 +143,6 @@ app.put('/partidas/:id',(req,res)=>{
             });
         }
     });
-    
 });
 
 /*Asignar llaves aleartorias*/
@@ -161,8 +179,7 @@ app.get('/asignarllaves/:torneo',(req,res)=>{
                 });
                 bandera=false
                 partida=[]
-            }
-            
+            } 
         });
         res.send({lista:lista})
     });

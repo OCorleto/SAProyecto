@@ -11,7 +11,8 @@ services:
    - db
 
  db:
-  image: mysql:8.0.12
+  container_name: mysqldb
+  image: mysql
   environment:
    MYSQL_DATABASE: 'sa'
    MYSQL_USER: 'usuariosa'
