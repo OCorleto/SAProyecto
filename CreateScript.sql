@@ -8,10 +8,6 @@ create table Usuario(
     nombre varchar(100)
 );
 
-create table Llave(
-	id int auto_increment primary key,
-    fase varchar(100)
-);
 
 create table Torneo(
 	id int auto_increment primary key,
@@ -33,9 +29,9 @@ create table Participacion(
 
 create table Partida(
 	id int auto_increment primary key,
-    numpartida int,
-    participacionid int,
-    llaveid int,
-    FOREIGN KEY (participacionid) REFERENCES Participacion(id),
-    FOREIGN KEY (llaveid) REFERENCES Llave(id)
+    jugador1 int,
+    jugador2 int,
+    llave int,
+    FOREIGN KEY (jugador1) REFERENCES Participacion(id),
+    FOREIGN KEY (jugador2) REFERENCES Participacion(id)
 );
