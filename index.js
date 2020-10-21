@@ -11,12 +11,12 @@ app.use(bodyParser.json())
 app.use(cors());
 
 /*ip y puerto donde correra el sevidor nodejs*/
-const ip = "127.0.0.1";
+const ip = "localhost";
 const port = 3000;
 
 /*conexion con la base de datos mysql*/
 var conn = mysql.createConnection({
-    host: "localhost",
+    host: "db",
     port: "3306",
     user: "usuariosa",
     password: "123",
