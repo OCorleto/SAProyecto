@@ -4,8 +4,7 @@ const mysql = require('mysql');
 const request = require('request')
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const jwt = require('jsonwebtoken');
-const fs = require('fs');
+
 
 const app = express();
 app.use(bodyParser.json())
@@ -14,10 +13,6 @@ app.use(cors());
 /*ip y puerto donde correra el sevidor nodejs*/
 const ip = "0.0.0.0";
 const port = 3000;
-
-/*PUBLIC KEY  */
-
-var publicKEY  = fs.readFileSync('./publica.pem', 'utf8');
 
 /*conexion con la base de datos mysql*/
 var conn = mysql.createConnection({
@@ -47,26 +42,8 @@ app.post('/nuevotorneo/', function (req, res) {
 
 /* Indica la conclusion de la partida */
 app.put('/partidas/:id',(req,res)=>{
-    var token = req.headers['authorization']
-    if(!token){
-        res.status(401).send({
-          error: "Es necesario el token de autenticación"
-        })
-        return
-    }
-    token = token.replace('Bearer ', '')
-    var verifyOptions = {
-        algorithm:  ["RS256"]
-    };
-    
-    jwt.verify(token, publicKEY, verifyOptions, function(err, user) {
-        if (err) {
-            console.log(err)
-            res.status(401).send({error: token})
-            return
-        }
-    });   
-    var partida = req.params.id
+   
+	 var partida = req.params.id
     var marcador = req.body.marcador
     var ganadorid = 0
     var llave=-1
@@ -264,12 +241,12 @@ app.get('/verllaves/:torneo',(req,res)=>{
         JSONtxt = JSONtxt + '\"ganador\": '+result[0].ganadorid+","
         JSONtxt = JSONtxt + '\"llave\": '+result[0].llave+","
         var llaves = result[0].llave
-        sql = "SELECT p.jugador1 as id1, p.jugador2 as id2, U1.nombre n1, U2.nombre as n2, p.llave as llavepart "
+        sql = "SELECT p.jugador1 as id1, p.jugador2 as id2, u1.nombre n1, u2.nombre as n2, p.llave as llavepart "
             + "FROM Partida p "
-            + "INNER JOIN Participacion Part1 on p.jugador1 =Part1.id "
-            + "INNER JOIN Usuario U1 ON Part1.usuarioid =U1.id "
-            + "INNER JOIN Participacion Part2 on p.jugador2 =Part2.id "
-            + "INNER JOIN Usuario U2 ON Part2.usuarioid =U2.id "
+            + "INNER JOIN Participacion Part1 on p.jugador1 =part1.id "
+            + "INNER JOIN Usuario U1 ON part1.usuarioid =U1.id "
+            + "INNER JOIN Participacion Part2 on p.jugador2 =part2.id "
+            + "INNER JOIN Usuario U2 ON part2.usuarioid =U2.id "
             + "WHERE Part1.torneoid = "+torneo +";"
         conn.query(sql, function (err, result) {
             if (err) {
