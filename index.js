@@ -50,6 +50,25 @@ app.post('/nuevojuego/',(req,res)=>{
     });
 });
 
+/*Ver juegos */
+app.get('/verjuegos/',(req,res)=>{
+    var sql = "SELECT * FROM Juego;"
+    envio = []
+    conn.query(sql, function (err, result) {
+        if (err) {
+            newlog('Error al ver juegos')
+            res.send({status:err}) 
+            return
+        }
+        result.forEach(element => {
+            envio.push({nombre: element.nombre,ip:element.ip,id:element.id})
+        });
+        newlog('Ver jeugos')
+        res.send(envio)
+    });
+})
+
+
 /* Crear nuevo torneo */
 app.post('/nuevotorneo/', function (req, res) {
     var nombre = req.body.nombre;
@@ -412,7 +431,7 @@ app.get('/verfuturos/',(req,res)=>{
             return
         }
         result.forEach(element => {
-            envio.push({nombre: element.nombre,llaves:element.llave,id:element.torneo})
+            envio.push({nombre: element.nombre,llaves:element.llave,id:element.torneo,registrados: element.numusers})
         });
         newlog('Ver torneos futuros')
         res.send(envio)
