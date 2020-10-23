@@ -40,8 +40,14 @@ app.post('/nuevotorneo/', function (req, res) {
     var llave = req.body.llave;
     var sql = "INSERT INTO Torneo(nombre,juegoid,llave) VALUES('"+nombre+"',"+juegoid+","+llave+");";
     conn.query(sql, function (err, result) {
-        if (err) res.send({status: err});
-        else res.send({status:req.body});
+        if (err) {
+            newlog('Error al crear nuevo troneo')
+            res.send({status: err});
+        }
+        else {
+            newlog('Torneo nuevo creado')
+            res.send({status:req.body});
+        }
     });
 });
 
@@ -49,6 +55,7 @@ app.post('/nuevotorneo/', function (req, res) {
 app.put('/partidas/:id',(req,res)=>{
     var token = req.headers['authorization']
     if(!token){
+        newlog('Error al recibir token')
         res.status(401).send({
           error: "Es necesario el token de autenticación"
         })
@@ -62,92 +69,101 @@ app.put('/partidas/:id',(req,res)=>{
     jwt.verify(token, publicKEY, verifyOptions, function(err, user) {
         if (err) {
             console.log(err)
-            res.status(401).send({error: token})
+            newlog('Error token vencido')
+            res.status(401).send({error: "Token vencido"})
             return
         }
-    });   
-    var partida = req.params.id
-    var marcador = req.body.marcador
-    var ganadorid = 0
-    var llave=-1
-    var sql = "SELECT * FROM Partida WHERE id = "+partida+";"
-    conn.query(sql, function (err, result) {
-        if (err) {
-            res.sendStatus(406) 
-            return
-        }
-        if (result.length == 0){
-            res.sendStatus(404)
-            return
-        }
-        if(marcador[0]>marcador[1]){ganadorid = result[0].jugador1}
-        else{ganadorid = result[0].jugador2}
-        llave = result[0].llave - 1
-        if (llave>0){
-            var sql = "SELECT p.* "
-                    +" FROM Partida p, Participacion part, "
-                    +" (SELECT parts.torneoid as torneo FROM Partida ps, Participacion parts "
-                    +" WHERE ps.jugador1 = parts.id AND (ps.jugador1 = "+ganadorid+" or ps.jugador2 = "+ganadorid+")) torneo "
-                    +" WHERE p.jugador1 = part.id "
-                    +" AND torneo.torneo = part.torneoid "
-                    +" AND p.jugador2 IS NULL "
-                    +" ORDER BY p.id;"
-            conn.query(sql, function(err,result){
-                if(err){
-                    console.log(err)
-                    res.sendStatus(406)
-                    return
-                }
-                if (result.length == 0){
-                    var sql = "INSERT INTO Partida(jugador1, llave) VALUES("+ganadorid+","+llave+");"
-                    conn.query(sql, function(err,result){
-                        if (err) {
-                            console.log(err)
-                            res.sendStatus(406) 
+        var partida = req.params.id
+        var marcador = req.body.marcador
+        var ganadorid = 0
+        var llave=-1
+        var sql = "SELECT * FROM Partida WHERE id = "+partida+";"
+        conn.query(sql, function (err, result) {
+            if (err) {
+                newlog('Error partida '+partida+ ' no encontrada')
+                res.sendStatus(406) 
+                return
+            }
+            if (result.length == 0){
+                newlog('Error partida '+partida+ ' no encontrada')
+                res.sendStatus(404)
+                return
+            }
+            if(marcador[0]>marcador[1]){ganadorid = result[0].jugador1}
+            else{ganadorid = result[0].jugador2}
+            llave = result[0].llave - 1
+            if (llave>0){
+                var sql = "SELECT p.* "
+                        +" FROM Partida p, Participacion part, "
+                        +" (SELECT parts.torneoid as torneo FROM Partida ps, Participacion parts "
+                        +" WHERE ps.jugador1 = parts.id AND (ps.jugador1 = "+ganadorid+" or ps.jugador2 = "+ganadorid+")) torneo "
+                        +" WHERE p.jugador1 = part.id "
+                        +" AND torneo.torneo = part.torneoid "
+                        +" AND p.jugador2 IS NULL "
+                        +" ORDER BY p.id;"
+                conn.query(sql, function(err,result){
+                    if(err){
+                        newlog('Error partida '+partida+ ' no encontrada')
+                        console.log(err)
+                        res.sendStatus(406)
+                        return
+                    }
+                    if (result.length == 0){
+                        var sql = "INSERT INTO Partida(jugador1, llave) VALUES("+ganadorid+","+llave+");"
+                        conn.query(sql, function(err,result){
+                            if (err) {
+                                newlog('Error partida '+partida+ ' no encontrada')
+                                res.sendStatus(406) 
+                                return
+                            }
+                            newlog('Ganador de partida '+partida+ ' registrado')
+                            res.sendStatus(201)
                             return
-                        }
-                        res.sendStatus(201)
-                        return
-                    });
-                }else{
-                    var sql = "UPDATE Partida SET jugador2 = "+ganadorid+" WHERE id = "+result[0].id+";"
-                    conn.query(sql, function(err,result){
-                        if (err) {
-                            console.log(err)
-                            res.sendStatus(406) 
+                        });
+                    }else{
+                        var sql = "UPDATE Partida SET jugador2 = "+ganadorid+" WHERE id = "+result[0].id+";"
+                        conn.query(sql, function(err,result){
+                            if (err) {
+                                newlog('Error partida '+partida+ ' no encontrada')
+                                res.sendStatus(406) 
+                                return
+                            }
+                            newlog('Ganador de partida '+partida+ ' registrado')
+                            res.sendStatus(201)
                             return
-                        }
-                        res.sendStatus(201)
+                        });
+                    }
+                });
+            }else{
+                var sql = "SELECT part.torneoid as torneo FROM Participacion part, Partida p WHERE p.jugador1 = part.id "
+                        + "AND p.jugador1 = "+result[0].jugador1+";"
+                conn.query(sql, function (err, result) {
+                    if (err) {
+                        newlog('Error partida '+partida+ ' no encontrada')
+                        res.sendStatus(406) 
                         return
-                    });
-                }
-            });
-        }else{
-            var sql = "SELECT part.torneoid as torneo FROM Participacion part, Partida p WHERE p.jugador1 = part.id "
-                    + "AND p.jugador1 = "+result[0].jugador1+";"
-            conn.query(sql, function (err, result) {
-                if (err) {
-                    res.sendStatus(406) 
-                    return
-                }
-                if (result.length == 0){
-                    res.sendStatus(404)
-                    return
-                }
-                var torneowin = result[0].torneo
-                var sql = "SELECT part.usuarioid as user FROM Participacion part, Partida p "
-                        +" WHERE (p.jugador1 = part.id or p.jugador2 = part.id)  AND part.id = "+ganadorid
-                console.log(sql)
-                conn.query(sql,function(err, result){
-                    var sql = "UPDATE Torneo SET ganadorid = "+result[0].user+" WHERE id = "+torneowin+";"
-                    conn.query(sql, function (err, result) {
-                        res.sendStatus(201)
+                    }
+                    if (result.length == 0){
+                        newlog('Error partida '+partida+ ' no encontrada')
+                        res.sendStatus(404)
                         return
+                    }
+                    var torneowin = result[0].torneo
+                    var sql = "SELECT part.usuarioid as user FROM Participacion part, Partida p "
+                            +" WHERE (p.jugador1 = part.id or p.jugador2 = part.id)  AND part.id = "+ganadorid
+                    conn.query(sql,function(err, result){
+                        var sql = "UPDATE Torneo SET ganadorid = "+result[0].user+" WHERE id = "+torneowin+";"
+                        conn.query(sql, function (err, result) {
+                            newlog('Ganador de partida '+partida+ ' registrado, partida define ganador de torneo '+torneowin)
+                            res.sendStatus(201)
+                            return
+                        });
                     });
                 });
-            });
-        }
-    });
+            }
+        });
+    });   
+    
 });
 
 /*Asignar llaves aleartorias*/
@@ -161,6 +177,7 @@ app.get('/asignarllaves/:torneo',(req,res)=>{
             "AND p.torneoid = "+torneo+";";
     conn.query(sql, function (err, result) {
         if (err) {
+            newlog('Error al buscar torneo '+torneo+' para asignar llaves')
             res.send({status:err}) 
             return
         }
@@ -178,6 +195,7 @@ app.get('/asignarllaves/:torneo',(req,res)=>{
                 var sql="INSERT INTO Partida(jugador1,jugador2,llave) VALUES("+partida[0]+","+partida[1]+","+llave+");"
                 conn.query(sql,function(err,result){
                     if(err) {
+                        newlog('Error al crear partidas de torneo '+torneo)
                         res.send({status:err})
                         return
                     }
@@ -186,6 +204,7 @@ app.get('/asignarllaves/:torneo',(req,res)=>{
                 partida=[]
             } 
         });
+        newlog('Llaves aleatorias de torneo '+torneo + ' asignadas')
         res.send({lista:lista})
     });
 
@@ -203,19 +222,27 @@ app.post('/asignarparticipacion/', (req, res,next)=> {
     
     conn.query(sql, function (err, result) {
         if (err) {
+            newlog('Error al asignar participacion de user '+usuario + ' a torneo '+torneo)
             res.send({status:err}) 
             return
         }
         
         datostorneo = JSON.parse(JSON.stringify(result));
         
-        if (datostorneo.length == 0){res.send({status : "No existe torneo"})}
+        if (datostorneo.length == 0){
+            newlog('Torneo '+torneo+' no existe para asignar participacion de user '+usuario)
+            res.send({status : "No existe torneo"})
+        }
         else{datostorneo=datostorneo[0]}
-        if( datostorneo.ganadorid != null){res.send({status : "Torneo ya finalizado"})}
+        if( datostorneo.ganadorid != null){
+            newlog('Torneo '+torneo+' ya finalizado para asignar participacion de user '+usuario)
+            res.send({status : "Torneo ya finalizado"})
+        }
         else{
             var sql = "SELECT count(*) as num FROM Participacion WHERE torneoid = "+torneo+";";
             conn.query(sql, function (err, result) {
                 if (err) {
+                    newlog('Error al asignar participacion de user '+usuario + ' a torneo '+torneo)
                     res.send({status:err}) 
                     return
                 }
@@ -225,14 +252,19 @@ app.post('/asignarparticipacion/', (req, res,next)=> {
                     var sql = "SELECT * FROM Participacion WHERE usuarioid = "+usuario+" AND torneoid = "+torneo+";";
                     conn.query(sql, function (err, result) {
                         if (err) {
+                            newlog('Error al asignar participacion de user '+usuario + ' a torneo '+torneo)
                             res.send({status:err}) 
                             return
                         }
-                        if (JSON.parse(JSON.stringify(result)).length > 0){res.send({status:"Usuario ya registrado en el torneo"})}
+                        if (JSON.parse(JSON.stringify(result)).length > 0){
+                            newlog('Error user '+usuario + ' ya registrado a torneo '+torneo)
+                            res.send({status:"Usuario ya registrado en el torneo"})
+                        }
                         else{
                             var sql = "INSERT INTO Participacion(usuarioid,torneoid) VALUES("+usuario+","+torneo+");";
                             conn.query(sql, function (err, result) {
                                 if (err) {
+                                    newlog('Error al asignar participacion de user '+usuario + ' a torneo '+torneo)
                                     res.send({status:err}) 
                                     return
                                 }
@@ -240,11 +272,15 @@ app.post('/asignarparticipacion/', (req, res,next)=> {
                                 if (disponibles == maxusers){
 
                                 }
+                                newlog('User '+usuario + ' asignado a torneo '+torneo)
                                 res.send({status: "Usuario "+usuario+" asignado a torneo "+torneo});
                             });
                         }
                     });
-                }else{res.send({status:"Torneo lleno"})}
+                }else{
+                    newlog('Torneo '+torneo+' lleno para asignar participacion de user '+usuario)
+                    res.send({status:"Torneo lleno"})
+                }
             });
         }
     });
@@ -257,6 +293,7 @@ app.get('/verllaves/:torneo',(req,res)=>{
     var JSONtxt = "{"
     conn.query(sql, function (err, result) {
         if (err) {
+            newlog('Error al ver llaves de torneo '+torneo)
             res.send({status:err}) 
             return
         }
@@ -264,15 +301,14 @@ app.get('/verllaves/:torneo',(req,res)=>{
         JSONtxt = JSONtxt + '\"ganador\": '+result[0].ganadorid+","
         JSONtxt = JSONtxt + '\"llave\": '+result[0].llave+","
         var llaves = result[0].llave
-        sql = "SELECT p.jugador1 as id1, p.jugador2 as id2, U1.nombre n1, U2.nombre as n2, p.llave as llavepart "
+        sql = "SELECT Part1.usuarioid as id1, Part2.usuarioid as id2, p.llave as llavepart "
             + "FROM Partida p "
             + "INNER JOIN Participacion Part1 on p.jugador1 =Part1.id "
-            + "INNER JOIN Usuario U1 ON Part1.usuarioid =U1.id "
             + "INNER JOIN Participacion Part2 on p.jugador2 =Part2.id "
-            + "INNER JOIN Usuario U2 ON Part2.usuarioid =U2.id "
             + "WHERE Part1.torneoid = "+torneo +";"
         conn.query(sql, function (err, result) {
             if (err) {
+                newlog('Error al ver llaves de torneo '+torneo)
                 res.send({status:err}) 
                 return
             }
@@ -281,8 +317,8 @@ app.get('/verllaves/:torneo',(req,res)=>{
                 result.forEach(element => {
                     if(element.llavepart == llaves){
                         JSONtxt = JSONtxt + "{"
-                        JSONtxt = JSONtxt + '\"jugador1\": \"'+element.n1+'\",'
-                        JSONtxt = JSONtxt + '\"jugador2\": \"'+element.n2+"\""
+                        JSONtxt = JSONtxt + '\"jugador1\": '+element.id1+','
+                        JSONtxt = JSONtxt + '\"jugador2\": '+element.id2
                         JSONtxt = JSONtxt + "},"
                     }
                 });
@@ -294,6 +330,7 @@ app.get('/verllaves/:torneo',(req,res)=>{
             if (JSONtxt[JSONtxt.length-1]==","){JSONtxt = JSONtxt.slice(0,-1)}
             JSONtxt = JSONtxt + "}"
             JSONtxt = JSON.parse(JSONtxt)
+            newlog('Mostrando llaves de torneo '+torneo)
             res.send(JSONtxt)
         });
         
@@ -302,16 +339,18 @@ app.get('/verllaves/:torneo',(req,res)=>{
 
 /*Ver torneos ya ganados */
 app.get('/verganados/',(req,res)=>{
-    var sql = "SELECT t.nombre as nombre,t.id as id, u.nombre as user FROM Torneo t, Usuario u WHERE u.id = t.ganadorid AND ganadorid IS NOT NULL;"
+    var sql = "SELECT * FROM Torneo WHERE ganadorid IS NOT NULL;"
     envio = []
     conn.query(sql, function (err, result) {
         if (err) {
+            newlog('Error al ver torneos ganados')
             res.send({status:err}) 
             return
         }
         result.forEach(element => {
-            envio.push({nombre: element.nombre,ganador:element.ganador,id:element.id})
+            envio.push({nombre: element.nombre,ganador:element.ganadorid,id:element.id})
         });
+        newlog('Ver torneos ganados')
         res.send(envio)
     });
 });
@@ -327,12 +366,14 @@ app.get('/verpresentes/',(req,res)=>{
     envio = []
     conn.query(sql, function (err, result) {
         if (err) {
+            newlog('Error al ver torneos presentes')
             res.send({status:err}) 
             return
         }
         result.forEach(element => {
             envio.push({nombre: element.nombre,llaves:element.llave,id:element.torneo})
         });
+        newlog('Ver torneos presentes')
         res.send(envio)
     });
 });
@@ -348,15 +389,63 @@ app.get('/verfuturos/',(req,res)=>{
     envio = []
     conn.query(sql, function (err, result) {
         if (err) {
+            newlog('Error al ver torneos futuros')
             res.send({status:err}) 
             return
         }
         result.forEach(element => {
             envio.push({nombre: element.nombre,llaves:element.llave,id:element.torneo})
         });
+        newlog('Ver torneos futuros')
         res.send(envio)
     });
 });
+
+/*Ver torneos User ganados*/
+app.get('/userganados/:usuario',(req,res)=>{
+    var usuario = req.params.usuario
+    var sql = "SELECT * FROM Torneo WHERE ganadorid = "+usuario+";"
+    envio = []
+    conn.query(sql, function (err, result) {
+        if (err) {
+            newlog('Error al ver torneos ganados por usuario '+usuario)
+            res.send({status:err}) 
+            return
+        }
+        result.forEach(element => {
+            envio.push({torneo: element.nombre,id:element.id})
+        });
+        newlog('Ver torneos ganados pur usuario '+usuario)
+        res.send(envio)
+    });
+});
+
+/*Ver torneos User no terminados */
+app.get('/userparticipacion/:usuario',(req,res)=>{
+    var usuario = req.params.usuario
+    var sql = "SELECT t.id as id, t.nombre as nombre, MIN(p.llave) as llave "
+            + "FROM Participacion part, Partida p, Torneo t "
+            + "WHERE part.torneoid = t.id "
+            + "AND (part.id  = p.jugador1 OR part.id = p.jugador2) "
+            + "AND part.usuarioid = "+usuario
+            + " GROUP BY t.id; "
+    envio = []
+    conn.query(sql, function (err, result) {
+        if (err) {
+            newlog('Error al ver torneos futuros')
+            res.send({status:err}) 
+            return
+        }
+        result.forEach(element => {
+            envio.push({nombre: element.nombre,llave:element.llave,id:element.id})
+        });
+        newlog('Ver torneos no finalizados de usuario '+usuario)
+        res.send(envio)
+    });
+});
+
+
+
 
 /*------------------------- FUNCIONES -------------------------*/
 function shuffle(array) {
@@ -376,4 +465,14 @@ function shuffle(array) {
     }
   
     return array;
-  }
+}
+
+
+function newlog(data){
+    let now= new Date();
+    fecha = now.getDate()+"/"+now.getMonth()+"/"+now.getFullYear()+" "+now.getHours()+":"+now.getMinutes()
+    data = '[torneos]'+fecha+'-> '+data
+    console.log(data)
+}
+
+
