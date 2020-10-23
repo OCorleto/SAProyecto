@@ -21,7 +21,7 @@ var publicKEY  = fs.readFileSync('./publica.pem', 'utf8');
 
 /*conexion con la base de datos mysql*/
 var conn = mysql.createConnection({
-    host: "mysqldb",
+    host: "localhost",
     port: "3306",
     user: "usuariosa",
     password: "123",
@@ -418,9 +418,9 @@ app.get('/verpresentes/',(req,res)=>{
 /*Ver torneos futuros */
 app.get('/verfuturos/',(req,res)=>{
     var sql = "SELECT t.id as torneo, count(p.usuarioid) as numusers, t.llave as llave, t.nombre as nombre "
-            + "FROM Torneo t, Participacion p "
-            + "WHERE t.id = p.torneoid "
-            + "AND t.ganadorid IS NULL "
+            + "FROM Torneo t "
+            + "LEFT JOIN Participacion p ON p.torneoid = t.id "
+            + "WHERE t.ganadorid IS NULL "
             + "GROUP BY p.torneoid "
             + "HAVING numusers < pow(2,llave); "
     envio = []
