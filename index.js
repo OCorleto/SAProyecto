@@ -33,6 +33,23 @@ app.listen(port,ip, () => {
     console.log('Se escucha en el puerto: %d y con la ip: %s',port,ip);
 });
 
+/*Nuevo juego */
+app.post('/nuevojuego/',(req,res)=>{
+    var nombre = req.body.nombre;
+    var ipjuego = req.body.ip;
+    var sql = "INSERT INTO Juego(nombre,ip) VALUES('"+nombre+"','"+ipjuego+"');";
+    conn.query(sql, function (err, result) {
+        if (err) {
+            newlog('Error al crear nuevo nuevo juego')
+            res.send({status: err});
+        }
+        else {
+            newlog('Juego nuevo creado')
+            res.send({status:req.body});
+        }
+    });
+});
+
 /* Crear nuevo torneo */
 app.post('/nuevotorneo/', function (req, res) {
     var nombre = req.body.nombre;
@@ -301,7 +318,7 @@ app.get('/verllaves/:torneo',(req,res)=>{
         JSONtxt = JSONtxt + '\"ganador\": '+result[0].ganadorid+","
         JSONtxt = JSONtxt + '\"llave\": '+result[0].llave+","
         var llaves = result[0].llave
-        sql = "SELECT Part1.usuarioid as id1, Part2.usuarioid as id2, p.llave as llavepart "
+        sql = "SELECT Part1.usuarioid as id1, Part2.usuarioid as id2, p.llave as llavepart, Part1.id as id "
             + "FROM Partida p "
             + "INNER JOIN Participacion Part1 on p.jugador1 =Part1.id "
             + "INNER JOIN Participacion Part2 on p.jugador2 =Part2.id "
@@ -317,6 +334,7 @@ app.get('/verllaves/:torneo',(req,res)=>{
                 result.forEach(element => {
                     if(element.llavepart == llaves){
                         JSONtxt = JSONtxt + "{"
+                        JSONtxt = JSONtxt + '\"partida\": '+element.id+','
                         JSONtxt = JSONtxt + '\"jugador1\": '+element.id1+','
                         JSONtxt = JSONtxt + '\"jugador2\": '+element.id2
                         JSONtxt = JSONtxt + "},"

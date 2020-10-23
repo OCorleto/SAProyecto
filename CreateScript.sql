@@ -1,6 +1,7 @@
 create table Juego(
 	id int auto_increment primary key,
-    nombre varchar(100)
+    nombre varchar(100),
+    ip varchar(50)
 );
 
 create table Torneo(
